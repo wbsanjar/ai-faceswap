@@ -1,0 +1,15 @@
+# Vercel (production) dependencies.
+# Local dev keeps the heavier stack in requirements-local.txt (mediapipe, onnx).
+# mediapipe is intentionally excluded here: its bundled TF libs are huge and
+# would blow past the 500 MB standard function bundle. The app degrades
+# gracefully to the YuNet detector when MediaPipe is absent.
+[project]
+name = "faceswap-studio"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0",
+    "opencv-python-headless>=4.10",
+    "numpy>=1.26",
+    "onnxruntime>=1.20",
+]

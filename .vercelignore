@@ -1,0 +1,15 @@
+.venv/
+__pycache__
+*.pyc
+*.log
+.git/
+
+# Not bundled: downloaded on-demand into /tmp at cold start (see README).
+backend/models/*.onnx
+backend/models/*.task
+
+# Sample/testing images are not needed in production.
+backend/*.jpg
+backend/*.png
+backend/improve_*.png
+backend/var_*.png

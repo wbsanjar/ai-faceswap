@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+server.log
+test_output.png
+test_*.png
+probe_result.png
+r1.json
+r2.json
+result.json
+swaptest.png
+out.png
+backend/improve_*.png
+backend/var_*.png
+
+# Large AI models (auto-downloaded on first run); the identity latent map is
+# tiny and IS tracked so serverless deploys can ship it.
+backend/models/*
+!backend/models/inswapper_128.emap.npy

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FaceSwap Studio — Swap Faces in Seconds</title>
+  <meta name="description" content="Upload two photos and swap faces instantly. Private, free, and processed locally." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <header class="nav">
+    <a class="brand" href="#">
+      <span class="brand-mark">◈</span> FaceSwap<span>Studio</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#studio">Studio</a>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+    </nav>
+    <a class="btn btn-ghost" href="#studio">Try it free</a>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <span class="pill">100% free · No sign-up · Photos never leave your device</span>
+      <h1>Swap faces with <span class="grad">photorealistic</span> results.</h1>
+      <p>
+        Drop in two photos — one with the face you want, one to put it on.
+        Our engine aligns, meshes, and blends them like magic.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#studio">Start swapping ▸</a>
+        <a class="btn btn-ghost" href="#how">How it works</a>
+      </div>
+    </section>
+
+    <!-- Studio -->
+    <section id="studio" class="studio">
+      <div class="section-head">
+        <h2>The Studio</h2>
+        <p>Pick a source (the face) and a target (where it goes).</p>
+      </div>
+
+      <div class="cards">
+        <article data-slot="source" class="card" aria-label="Source image">
+          <div class="card-top">
+            <span class="tag tag-source">Source · Your face</span>
+            <button class="icon-btn" type="button" title="Clear" data-clear="source">✕</button>
+          </div>
+          <input id="file-source" type="file" accept="image/*" hidden />
+          <button class="drop" type="button" data-drop="source">
+            <img class="drop-preview" data-preview="source" alt="" hidden />
+            <span class="drop-empty">
+              <span class="drop-icon">＋</span>
+              <strong>Drag &amp; drop or click</strong>
+              <small>JPG, PNG or WEBP</small>
+            </span>
+          </button>
+        </article>
+
+        <button id="swap-direction" class="swap-arrows" type="button" title="Swap sides" aria-label="Swap source and target">
+          ⇄
+        </button>
+
+        <article data-slot="target" class="card" aria-label="Target image">
+          <div class="card-top">
+            <span class="tag tag-target">Target · Swap onto</span>
+            <button class="icon-btn" type="button" title="Clear" data-clear="target">✕</button>
+          </div>
+          <input id="file-target" type="file" accept="image/*" hidden />
+          <button class="drop" type="button" data-drop="target">
+            <img class="drop-preview" data-preview="target" alt="" hidden />
+            <span class="drop-empty">
+              <span class="drop-icon">＋</span>
+              <strong>Drag &amp; drop or click</strong>
+              <small>JPG, PNG or WEBP</small>
+            </span>
+          </button>
+        </article>
+      </div>
+
+      <div class="studio-actions">
+        <button id="swap-btn" class="btn btn-primary btn-lg" type="button" disabled>
+          ✨ Swap faces
+        </button>
+        <p id="status" class="status" role="status"></p>
+      </div>
+    </section>
+
+    <!-- Result -->
+    <section id="result" class="result" hidden>
+      <div class="section-head">
+        <h2>Your result</h2>
+        <p>Looks good? Download it — or tweak the photos and try again.</p>
+      </div>
+      <div class="result-box">
+        <div class="result-frame">
+          <img id="result-img" alt="Face-swapped result" />
+        </div>
+        <div class="result-actions">
+          <a id="download-btn" class="btn btn-primary" download="faceswap-result.png">⬇ Download PNG</a>
+          <button id="again-btn" class="btn btn-ghost" type="button">Swap another</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how" class="steps">
+      <div class="section-head">
+        <h2>How it works</h2>
+        <p>Three steps. No account needed.</p>
+      </div>
+      <ol class="steps-grid">
+        <li class="step">
+          <span class="step-num">1</span>
+          <h3>Upload source</h3>
+          <p>Add the photo containing the face you want to copy.</p>
+        </li>
+        <li class="step">
+          <span class="step-num">2</span>
+          <h3>Upload target</h3>
+          <p>Add the photo whose face will be replaced.</p>
+        </li>
+        <li class="step">
+          <span class="step-num">3</span>
+          <h3>Swap instantly</h3>
+          <p>Faces are aligned, meshed and blended — done in seconds.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="features">
+      <div class="section-head">
+        <h2>Made for everyone</h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature"><span class="feature-icon">🛡</span><h3>Private by design</h3><p>Images are processed in memory and never stored on any server.</p></div>
+        <div class="feature"><span class="feature-icon">⚡</span><h3>Blazing fast</h3><p>Landmark detection and mesh warping run in a couple of seconds.</p></div>
+        <div class="feature"><span class="feature-icon">🔮</span><h3>Smart alignment</h3><p>Faces are eye-aligned and warped with a 400+ point mesh for realism.</p></div>
+        <div class="feature"><span class="feature-icon">∞</span><h3>Unlimited swaps</h3><p>No credits, no watermark, no waiting in a queue. Swap as much as you like.</p></div>
+      </div>
+    </section>
+
+    <!-- Privacy -->
+    <section id="privacy" class="privacy">
+      <div class="section-head">
+        <h2>A word on responsible use</h2>
+        <p>Fun is great — harm is not.</p>
+      </div>
+      <div class="privacy-box">
+        <p>
+          Please only swap faces you own or have permission to edit, and keep the results respectful.
+          Don't use this tool to impersonate people, spread misinformation, or create non-consensual content.
+          Your images are processed locally and deleted the moment your request finishes.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>FaceSwap Studio · Built with Flask + MediaPipe + OpenCV</p>
+    <p class="footer-note">Demo project — face swap responsibly.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
