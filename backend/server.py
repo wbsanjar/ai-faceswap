@@ -34,7 +34,13 @@ def static_files(filename):
 
 @app.get("/api/health")
 def api_health():
-    return jsonify({"ok": True, "ai": ai_swap.ai_ready()})
+    warm = ai_swap.warm_status()
+    return jsonify({
+        "ok": True,
+        "ai": warm["status"] == "ready",
+        "ai_status": warm["status"],
+        "ai_error": warm["error"],
+    })
 
 
 @app.post("/api/swap")
@@ -47,37 +53,45 @@ def api_swap():
     source_data = source.read()
     target_data = target.read()
 
-    if not ai_swap.ai_ready():
+    warm = ai_swap.warm_status()
+    if warm["status"] != "ready":
         ai_swap.ensure_warm()
+        if warm["status"] == "failed":
+            return jsonify({
+                "status": "failed",
+                "error": "AI models could not be loaded ({}): {}".format(
+                    warm["status"], warm["error"] or "unknown error"),
+            }), 503
         return jsonify({
             "status": "warming",
             "message": "AI models are loading (first launch can take a few minutes). "
                        "Retrying automatically…",
         }), 202
 
-    png_data = _try_swap(ai_swap_images, source_data, target_data)
+    png_data, last_error = _try_swap(ai_swap_images, source_data, target_data)
     if png_data is None:
-        png_data = _try_swap(geometric_swap, source_data, target_data)
+        png_data, last_error = _try_swap(geometric_swap, source_data, target_data)
     if png_data is None:
         return jsonify({
-            "error": "No usable face swap could be produced. Try clearer, "
-                     "front-facing photos and reload the page if the models "
-                     "were still downloading."
+            "error": last_error or (
+                "No usable face swap could be produced. Try clearer, "
+                "front-facing photos and reload the page if the models "
+                "were still downloading.")
         }), 422
 
     return jsonify({"image": png_data, "encoding": "base64", "mime": "image/png"})
 
 
 def _try_swap(fn, source_data, target_data):
-    """Run a swap engine; return base64 PNG or None on any failure."""
+    """Run a swap engine; return (base64 PNG or None, last error message)."""
     try:
-        return fn(source_data, target_data)
+        return fn(source_data, target_data), None
     except FaceSwapError as exc:
         print(f"[swap] {fn.__module__}: {exc}")
-        return None
+        return None, str(exc)
     except Exception as exc:  # pragma: no cover
         traceback.print_exc()
-        return None
+        return None, "{}: {}".format(type(exc).__name__, exc)
 
 
 @app.errorhandler(413)

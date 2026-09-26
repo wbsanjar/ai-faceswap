@@ -216,9 +216,10 @@
   /* ---------- the swap ---------- */
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const HEALTH_POLL_MS = 4000;
-  const MAX_WARM_WAIT_MS = 200000; // 200 s of model-warm waiting
+  const HEALTH_POLL_MS = 2000;
+  const MAX_WARM_WAIT_MS = 300000; // 5 min of model-warm waiting
   const FETCH_TIMEOUT_MS = 120000; // generous cap so the button never hangs
+  const MAX_TRANSPORT_RETRIES = 8;
 
   function friendlyError(err) {
     if (err && err.code === "ABORT") {
@@ -250,6 +251,11 @@
         boom.code = "WARMING";
         throw boom;
       }
+      if (res.status === 503) {
+        const boom = new Error(data.error || "AI models could not be loaded.");
+        boom.code = "MODELS_FAILED";
+        throw boom;
+      }
       if (!res.ok || !data.image) {
         throw new Error(data.error || "Swap failed. Please try again.");
       }
@@ -276,15 +282,39 @@
     }
   }
 
+  /* Resolves to null while the models are still warming, or throws with the
+     real reason when the warm-up failed / the wait ran out. */
   async function waitForHealth(deadline) {
-    while (Date.now() < deadline) {
+    for (;;) {
+      let health = null;
       try {
         const res = await fetch("/api/health", { cache: "no-store" });
-        const health = await res.json().catch(() => ({}));
-        if (res.ok && health.ok && health.ai) return;
+        health = await res.json().catch(() => null);
       } catch (_) {
         /* server not up yet — keep polling */
       }
+      if (health && health.ok) {
+        if (health.ai) return;
+        if (health.ai_status === "failed") {
+          const boom = new Error(
+            "AI models load nahi ho paye: " + (health.ai_error || "unknown error")
+          );
+          boom.code = "MODELS_FAILED";
+          throw boom;
+        }
+      }
+      if (Date.now() >= deadline) {
+        const boom = new Error(
+          "Models load hone me bahut time lag raha hai. Page refresh kar ke " +
+          "dobaara try karo, ya thodi der baad."
+        );
+        boom.code = "WARM_TIMEOUT";
+        throw boom;
+      }
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      statusEl.textContent =
+        "AI models load ho rahe hain… " + left + "s mein ruk jayenge agar load na ho. " +
+        "Pehli baar 700 MB+ download hota hai.";
       await sleep(HEALTH_POLL_MS);
     }
   }
@@ -297,6 +327,7 @@
     statusEl.className = "status loading";
     statusEl.textContent = "Analyzing faces and warping meshes…";
     const started = Date.now();
+    let transportRetries = 0;
 
     try {
       for (;;) {
@@ -304,23 +335,17 @@
           if (await swapOnce()) break;
         } catch (err) {
           if (err && err.code === "WARMING") {
-            statusEl.textContent =
-              "✓ Images ready. AI models loading (first launch can take a few minutes)… " +
-              (err.message || "");
+            statusEl.textContent = "✓ Images ready. " + (err.message || "");
             await waitForHealth(started + MAX_WARM_WAIT_MS);
-            if (Date.now() >= started + MAX_WARM_WAIT_MS) {
-              statusEl.className = "status error";
-              throw new Error(
-                "Models load hone me bahut time lag raha hai. Page refresh kar ke dobaara try karo, ya thodi der baad."
-              );
-            }
             continue; // models ready → retry the swap
           }
-          if (Date.now() - started < 60000) {
+          if (err && err.code === "MODELS_FAILED") throw err;
+          if (Date.now() - started < 60000 && transportRetries < MAX_TRANSPORT_RETRIES) {
+            transportRetries += 1;
             statusEl.textContent =
               "Connectivity issue / cold start — dobara koshish ho rahi hai… (" +
               friendlyError(err) + ")";
-            await sleep(4000);
+            await sleep(Math.min(15000, 2000 * transportRetries));
             continue;
           }
           throw err;

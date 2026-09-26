@@ -9,6 +9,8 @@ mirror InsightFace's reference implementation.
 import os
 import shutil
 import threading
+import time
+import traceback
 
 import cv2
 import numpy as np
@@ -76,8 +78,12 @@ class _Sessions:
     _emap = None
 
     @classmethod
+    def _loaded(cls):
+        return cls._swapper is not None and cls._arcface is not None and cls._emap is not None
+
+    @classmethod
     def _load(cls):
-        if cls._swapper is not None:
+        if cls._loaded():
             return
         if ort is None:
             raise FaceSwapError("onnxruntime is not installed.")
@@ -87,18 +93,25 @@ class _Sessions:
         emap = os.path.join(model_dir, _EMAP_FN)
         _ensure_model(_SWAPPER_URL, swapper)
         _ensure_model(_ARCFACE_URL, arcface)
-        cls._swapper = ort.InferenceSession(
+        swapper_sess = ort.InferenceSession(
             swapper, providers=["CPUExecutionProvider"]
         )
-        cls._arcface = ort.InferenceSession(
-            arcface, providers=["CPUExecutionProvider"]
-        )
-        cls._emap = _load_emap(emap, swapper)
+        try:
+            arcface_sess = ort.InferenceSession(
+                arcface, providers=["CPUExecutionProvider"]
+            )
+            emap_arr = _load_emap(emap, swapper)
+        except BaseException:
+            del swapper_sess
+            raise
+        cls._swapper = swapper_sess
+        cls._arcface = arcface_sess
+        cls._emap = emap_arr
 
     @classmethod
     def get(cls):
         with _LOCK:
-            if cls._swapper is None:
+            if not cls._loaded():
                 cls._load()
             return cls._swapper, cls._arcface, cls._emap
 
@@ -107,6 +120,14 @@ class _Sessions:
 # cold function responds fast with "warming" instead of hanging the browser.
 _WARM_STATE = {"status": "cold", "error": None}  # cold | warming | ready | failed
 _WARM_LOCK = threading.Lock()
+_WARM_LAST_ATTEMPT = [0.0]
+_RETRY_COOLDOWN_S = 30.0
+
+
+def warm_status():
+    """Current warm-up state plus the last failure reason, if any."""
+    with _WARM_LOCK:
+        return dict(_WARM_STATE)
 
 
 def ai_ready():
@@ -114,24 +135,33 @@ def ai_ready():
         return _WARM_STATE["status"] == "ready"
 
 
-def ensure_warm():
-    """Start (or restart) the background model warm-up exactly once."""
+def ensure_warm(force=False):
+    """Start (or restart) the background model warm-up exactly once.
+
+    A failed attempt is not retried more than once every `_RETRY_COOLDOWN_S`
+    seconds, so a broken download cannot make every request re-allocate the
+    ~1 GB of model weights.
+    """
     with _WARM_LOCK:
         if _WARM_STATE["status"] in ("warming", "ready"):
             return dict(_WARM_STATE)
+        if (not force and _WARM_STATE["status"] == "failed"
+                and time.monotonic() - _WARM_LAST_ATTEMPT[0] < _RETRY_COOLDOWN_S):
+            return dict(_WARM_STATE)
         _WARM_STATE["status"] = "warming"
         _WARM_STATE["error"] = None
+        _WARM_LAST_ATTEMPT[0] = time.monotonic()
 
     def _run():
         try:
             _Sessions.get()
             with _WARM_LOCK:
                 _WARM_STATE["status"] = "ready"
-        except Exception as exc:
+        except BaseException as exc:
             with _WARM_LOCK:
                 _WARM_STATE["status"] = "failed"
-                _WARM_STATE["error"] = str(exc)
-            print(f"[ai_swap] warm-up failed, will retry: {exc}")
+                _WARM_STATE["error"] = "%s: %s" % (type(exc).__name__, exc)
+            traceback.print_exc()
 
     threading.Thread(target=_run, daemon=True).start()
     return dict(_WARM_STATE)
